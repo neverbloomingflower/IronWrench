@@ -17,25 +17,26 @@ jobs:
           node-version: 20
 
       - name: Create Fresh Package Config
-        # This deletes the messy file and writes a clean one
+        shell: pwsh
         run: |
-          del package.json
-          del package-lock.json
-          echo { > package.json
-          echo   "name": "ironwrench", >> package.json
-          echo   "version": "1.0.0", >> package.json
-          echo   "main": "main.js", >> package.json
-          echo   "dependencies": { >> package.json
-          echo     "expo": "~52.0.0", >> package.json
-          echo     "react": "18.3.1", >> package.json
-          echo     "react-dom": "18.3.1", >> package.json
-          echo     "react-native": "0.76.0" >> package.json
-          echo   }, >> package.json
-          echo   "devDependencies": { >> package.json
-          echo     "electron": "latest", >> package.json
-          echo     "electron-builder": "latest" >> package.json
-          echo   } >> package.json
-          echo } >> package.json
+          if (Test-Path package.json) { Remove-Item package.json -Force }
+          if (Test-Path package-lock.json) { Remove-Item package-lock.json -Force }
+          $package = @{
+              name = "ironwrench"
+              version = "1.0.0"
+              main = "main.js"
+              dependencies = @{
+                  expo = "~52.0.0"
+                  react = "18.3.1"
+                  "react-dom" = "18.3.1"
+                  "react-native" = "0.76.0"
+              }
+              devDependencies = @{
+                  electron = "latest"
+                  "electron-builder" = "latest"
+              }
+          }
+          $package | ConvertTo-Json | Out-File -FilePath package.json -Encoding utf8
 
       - name: Install dependencies
         run: npm install --force
