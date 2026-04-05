@@ -4,6 +4,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+# THIS IS THE MISSING KEY:
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
@@ -31,7 +35,7 @@ jobs:
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "expo-font" -Value "~13.0.3" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "@expo/vector-icons" -Value "^14.0.0" -Force
           
-          # Add build settings directly to package.json to avoid command-line errors
+          # Add build settings directly to package.json
           if ($null -eq $json.build) { $json | Add-Member -MemberType NoteProperty -Name "build" -Value @{} }
           $json.build | Add-Member -MemberType NoteProperty -Name "directories" -Value @{ "output" = "dist-exe" } -Force
           $json.build | Add-Member -MemberType NoteProperty -Name "files" -Value @("dist/**/*", "main.js") -Force
@@ -54,7 +58,6 @@ jobs:
         run: npx expo export --platform web
 
       - name: Build Windows EXE
-        # We removed the problematic flag and moved config into the package.json repair step
         run: npx electron-builder build --windows --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
