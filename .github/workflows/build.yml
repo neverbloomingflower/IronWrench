@@ -19,27 +19,27 @@ jobs:
       - name: Repair Package Versions
         shell: pwsh
         run: |
-          # 1. Load your actual package.json
+          # 1. Load the package.json
           $json = Get-Content package.json | ConvertFrom-Json
           
-          # 2. Fix the non-existent React version (18.3.2 -> 18.3.1)
-          if ($json.dependencies.react) { $json.dependencies.react = "18.3.1" }
-          if ($json.dependencies."react-dom") { $json.dependencies."react-dom" = "18.3.1" }
+          # 2. Fix React versions
+          $json.dependencies.react = "18.3.1"
+          $json.dependencies."react-dom" = "18.3.1"
+          $json.dependencies."react-native" = "0.76.0"
           
-          # 3. Ensure React Native is at a stable version for Expo 52/55
-          if ($json.dependencies."react-native") { $json.dependencies."react-native" = "0.76.0" }
+          # 3. Safely handle devDependencies
+          if ($null -eq $json.devDependencies) {
+              $json | Add-Member -MemberType NoteProperty -Name "devDependencies" -Value @{}
+          }
+          $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron" -Value "latest" -Force
+          $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron-builder" -Value "latest" -Force
           
-          # 4. Remove any "overrides" that cause the EOVERRIDE error
+          # 4. Remove problematic overrides
           if ($json.PSObject.Properties.Name -contains "overrides") { 
               $json.PSObject.Properties.Remove("overrides") 
           }
           
-          # 5. Add Desktop build tools if missing
-          if (!$json.devDependencies) { $json.devDependencies = @{} }
-          $json.devDependencies.electron = "latest"
-          $json.devDependencies."electron-builder" = "latest"
-          
-          # 6. Save it back
+          # 5. Save back to file
           $json | ConvertTo-Json -Depth 10 | Out-File package.json -Encoding utf8
 
       - name: Install dependencies
