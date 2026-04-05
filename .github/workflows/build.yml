@@ -23,33 +23,30 @@ jobs:
           if ($null -eq $json.dependencies) { $json | Add-Member -MemberType NoteProperty -Name "dependencies" -Value @{} }
           if ($null -eq $json.devDependencies) { $json | Add-Member -MemberType NoteProperty -Name "devDependencies" -Value @{} }
           
-          # Force set the EXACT versions the logs are asking for
+          # Stable versions for SDK 52
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-dom" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native" -Value "0.76.9" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native-web" -Value "~0.19.13" -Force
           
-          # Ensure Electron tools are ready
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron" -Value "latest" -Force
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron-builder" -Value "latest" -Force
           
-          # Kill the overrides block that keeps causing conflicts
           if ($json.PSObject.Properties.Match('overrides').Count -gt 0) { $json.PSObject.Properties.Remove('overrides') }
-          
           $json | ConvertTo-Json -Depth 10 | Out-File package.json -Encoding utf8
 
       - name: Install dependencies
         run: npm install --force
 
       - name: Force Fix Expo Dependencies
-        # '--fix' will actually apply the changes instead of just complaining
         run: npx expo install --fix
 
-      - name: Build Web Version
-        run: npx expo export:web
+      - name: Build Web Version (Metro)
+        # We use 'npx expo export' instead of 'export:web' for modern Metro builds
+        run: npx expo export --platform web
 
       - name: Build Windows EXE
-        # We add --config.nodeGypRebuild=false to skip annoying C++ compile errors
+        # We point electron-builder to the 'dist' folder created by the export
         run: npx electron-builder build --windows --publish never -c.nodeGypRebuild=false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
