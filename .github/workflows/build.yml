@@ -23,11 +23,15 @@ jobs:
           if ($null -eq $json.dependencies) { $json | Add-Member -MemberType NoteProperty -Name "dependencies" -Value @{} }
           if ($null -eq $json.devDependencies) { $json | Add-Member -MemberType NoteProperty -Name "devDependencies" -Value @{} }
           
-          # Stable versions for SDK 52
+          # Force core versions
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-dom" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native" -Value "0.76.9" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native-web" -Value "~0.19.13" -Force
+          
+          # Force UI/Font dependencies to prevent 'Unable to resolve' errors
+          $json.dependencies | Add-Member -MemberType NoteProperty -Name "expo-font" -Value "~13.0.3" -Force
+          $json.dependencies | Add-Member -MemberType NoteProperty -Name "@expo/vector-icons" -Value "^14.0.0" -Force
           
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron" -Value "latest" -Force
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron-builder" -Value "latest" -Force
@@ -39,14 +43,15 @@ jobs:
         run: npm install --force
 
       - name: Force Fix Expo Dependencies
-        run: npx expo install --fix
+        # We run this twice: once to sync and once to ensure all peer deps are satisfied
+        run: |
+          npx expo install --fix
+          npx expo install expo-font @expo/vector-icons
 
       - name: Build Web Version (Metro)
-        # We use 'npx expo export' instead of 'export:web' for modern Metro builds
         run: npx expo export --platform web
 
       - name: Build Windows EXE
-        # We point electron-builder to the 'dist' folder created by the export
         run: npx electron-builder build --windows --publish never -c.nodeGypRebuild=false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
