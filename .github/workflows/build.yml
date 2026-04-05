@@ -23,33 +23,34 @@ jobs:
           if ($null -eq $json.dependencies) { $json | Add-Member -MemberType NoteProperty -Name "dependencies" -Value @{} }
           if ($null -eq $json.devDependencies) { $json | Add-Member -MemberType NoteProperty -Name "devDependencies" -Value @{} }
           
-          # Force core versions
+          # Force set the EXACT versions the logs are asking for
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-dom" -Value "18.3.1" -Force
-          $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native" -Value "0.76.0" -Force
-          
-          # Force Web Support
+          $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native" -Value "0.76.9" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native-web" -Value "~0.19.13" -Force
           
-          # Add Desktop tools
+          # Ensure Electron tools are ready
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron" -Value "latest" -Force
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron-builder" -Value "latest" -Force
           
+          # Kill the overrides block that keeps causing conflicts
           if ($json.PSObject.Properties.Match('overrides').Count -gt 0) { $json.PSObject.Properties.Remove('overrides') }
+          
           $json | ConvertTo-Json -Depth 10 | Out-File package.json -Encoding utf8
 
       - name: Install dependencies
         run: npm install --force
 
-      - name: Auto-fix Expo dependencies
-        # This tells Expo to look at your code and install whatever is missing
-        run: npx expo install --check
+      - name: Force Fix Expo Dependencies
+        # '--fix' will actually apply the changes instead of just complaining
+        run: npx expo install --fix
 
       - name: Build Web Version
         run: npx expo export:web
 
       - name: Build Windows EXE
-        run: npx electron-builder build --windows --publish never
+        # We add --config.nodeGypRebuild=false to skip annoying C++ compile errors
+        run: npx electron-builder build --windows --publish never -c.nodeGypRebuild=false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
