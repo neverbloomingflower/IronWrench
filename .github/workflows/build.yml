@@ -16,22 +16,25 @@ jobs:
         with:
           node-version: 20
 
-      - name: Fix Ghost React Version
-        # This command forces the package.json to use a version that actually exists
+      - name: Force Clean Package Config
+        # This replaces the messy versions with stable ones before installing
         run: |
           npm install -g json
           npx json -I -f package.json -e "this.dependencies.react='18.3.1'"
           npx json -I -f package.json -e "this.dependencies['react-dom']='18.3.1'"
+          npx json -I -f package.json -e "this.dependencies['react-native']='0.76.0'"
+          npx json -I -f package.json -d overrides
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        # Using --force here to tell NPM to just do what it's told
+        run: npm install --force
 
       - name: Build Web Version
         run: npx expo export:web
 
       - name: Build Windows EXE
         run: |
-          npm install --save-dev electron electron-builder
+          npm install --save-dev electron electron-builder --force
           npx electron-builder build --windows --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
