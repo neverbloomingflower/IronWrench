@@ -16,26 +16,35 @@ jobs:
         with:
           node-version: 20
 
-      - name: Force Clean Package Config
-        # This replaces the messy versions with stable ones before installing
+      - name: Create Fresh Package Config
+        # This deletes the messy file and writes a clean one
         run: |
-          npm install -g json
-          npx json -I -f package.json -e "this.dependencies.react='18.3.1'"
-          npx json -I -f package.json -e "this.dependencies['react-dom']='18.3.1'"
-          npx json -I -f package.json -e "this.dependencies['react-native']='0.76.0'"
-          npx json -I -f package.json -d overrides
+          del package.json
+          del package-lock.json
+          echo { > package.json
+          echo   "name": "ironwrench", >> package.json
+          echo   "version": "1.0.0", >> package.json
+          echo   "main": "main.js", >> package.json
+          echo   "dependencies": { >> package.json
+          echo     "expo": "~52.0.0", >> package.json
+          echo     "react": "18.3.1", >> package.json
+          echo     "react-dom": "18.3.1", >> package.json
+          echo     "react-native": "0.76.0" >> package.json
+          echo   }, >> package.json
+          echo   "devDependencies": { >> package.json
+          echo     "electron": "latest", >> package.json
+          echo     "electron-builder": "latest" >> package.json
+          echo   } >> package.json
+          echo } >> package.json
 
       - name: Install dependencies
-        # Using --force here to tell NPM to just do what it's told
         run: npm install --force
 
       - name: Build Web Version
         run: npx expo export:web
 
       - name: Build Windows EXE
-        run: |
-          npm install --save-dev electron electron-builder --force
-          npx electron-builder build --windows --publish never
+        run: npx electron-builder build --windows --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
