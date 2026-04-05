@@ -19,32 +19,31 @@ jobs:
       - name: Repair Package Versions
         shell: pwsh
         run: |
-          # 1. Load the existing file
           $json = Get-Content package.json | ConvertFrom-Json
-          
-          # 2. Ensure the sections exist so we don't get "Property not found" errors
           if ($null -eq $json.dependencies) { $json | Add-Member -MemberType NoteProperty -Name "dependencies" -Value @{} }
           if ($null -eq $json.devDependencies) { $json | Add-Member -MemberType NoteProperty -Name "devDependencies" -Value @{} }
           
-          # 3. Force set the core versions using the most stable PowerShell method
+          # Force core versions
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-dom" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native" -Value "0.76.0" -Force
           
-          # 4. Add Electron tools
+          # Force Web Support
+          $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native-web" -Value "~0.19.13" -Force
+          
+          # Add Desktop tools
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron" -Value "latest" -Force
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron-builder" -Value "latest" -Force
           
-          # 5. Scrub the problematic overrides section
-          if ($json.PSObject.Properties.Match('overrides').Count -gt 0) {
-              $json.PSObject.Properties.Remove('overrides')
-          }
-          
-          # 6. Save back with high depth to prevent data loss
+          if ($json.PSObject.Properties.Match('overrides').Count -gt 0) { $json.PSObject.Properties.Remove('overrides') }
           $json | ConvertTo-Json -Depth 10 | Out-File package.json -Encoding utf8
 
       - name: Install dependencies
         run: npm install --force
+
+      - name: Auto-fix Expo dependencies
+        # This tells Expo to look at your code and install whatever is missing
+        run: npx expo install --check
 
       - name: Build Web Version
         run: npx expo export:web
