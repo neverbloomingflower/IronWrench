@@ -19,34 +19,39 @@ jobs:
         with:
           node-version: 20
 
-      - name: Repair Package Versions
+      - name: Repair Package and Create Entry
         shell: pwsh
         run: |
+          # 1. Load and Fix Package.json
           $json = Get-Content package.json | ConvertFrom-Json
-          if ($null -eq $json.dependencies) { $json | Add-Member -MemberType NoteProperty -Name "dependencies" -Value @{} }
-          if ($null -eq $json.devDependencies) { $json | Add-Member -MemberType NoteProperty -Name "devDependencies" -Value @{} }
-          
-          # 1. Force stable versions
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-dom" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native" -Value "0.76.9" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native-web" -Value "~0.19.13" -Force
-          $json.dependencies | Add-Member -MemberType NoteProperty -Name "expo-font" -Value "~13.0.3" -Force
-          $json.dependencies | Add-Member -MemberType NoteProperty -Name "@expo/vector-icons" -Value "^14.0.0" -Force
           
-          # 2. IMPORTANT: Change entry point to main.js for Electron
+          # Force entry point to main.js
           $json.main = "main.js"
 
-          # 3. Add build settings
+          # Configure build to include the dist folder and our new main.js
           if ($null -eq $json.build) { $json | Add-Member -MemberType NoteProperty -Name "build" -Value @{} }
           $json.build | Add-Member -MemberType NoteProperty -Name "directories" -Value @{ "output" = "dist-exe" } -Force
           $json.build | Add-Member -MemberType NoteProperty -Name "files" -Value @("dist/**/*", "main.js") -Force
+          $json.build | Add-Member -MemberType NoteProperty -Name "asar" -Value $true -Force
 
-          $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron" -Value "latest" -Force
-          $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron-builder" -Value "latest" -Force
-          
-          if ($json.PSObject.Properties.Match('overrides').Count -gt 0) { $json.PSObject.Properties.Remove('overrides') }
           $json | ConvertTo-Json -Depth 10 | Out-File package.json -Encoding utf8
+
+          # 2. CREATE THE MISSING main.js FILE
+          $mainJs = @"
+          const { app, BrowserWindow } = require('electron');
+          const path = require('path');
+          function createWindow() {
+            const win = new BrowserWindow({ width: 1200, height: 800 });
+            win.loadFile(path.join(__dirname, 'dist/index.html'));
+          }
+          app.whenReady().then(createWindow);
+          app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+          "@
+          $mainJs | Out-File -FilePath main.js -Encoding utf8
 
       - name: Install dependencies
         run: npm install --force
@@ -69,4 +74,3 @@ jobs:
         with:
           name: IronWrench-Windows-App
           path: dist-exe/*.exe
-          
