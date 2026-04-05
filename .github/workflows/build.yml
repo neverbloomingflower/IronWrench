@@ -23,16 +23,19 @@ jobs:
           if ($null -eq $json.dependencies) { $json | Add-Member -MemberType NoteProperty -Name "dependencies" -Value @{} }
           if ($null -eq $json.devDependencies) { $json | Add-Member -MemberType NoteProperty -Name "devDependencies" -Value @{} }
           
-          # Force core versions
+          # Force stable versions
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-dom" -Value "18.3.1" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native" -Value "0.76.9" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "react-native-web" -Value "~0.19.13" -Force
-          
-          # Force UI/Font dependencies to prevent 'Unable to resolve' errors
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "expo-font" -Value "~13.0.3" -Force
           $json.dependencies | Add-Member -MemberType NoteProperty -Name "@expo/vector-icons" -Value "^14.0.0" -Force
           
+          # Add build settings directly to package.json to avoid command-line errors
+          if ($null -eq $json.build) { $json | Add-Member -MemberType NoteProperty -Name "build" -Value @{} }
+          $json.build | Add-Member -MemberType NoteProperty -Name "directories" -Value @{ "output" = "dist-exe" } -Force
+          $json.build | Add-Member -MemberType NoteProperty -Name "files" -Value @("dist/**/*", "main.js") -Force
+
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron" -Value "latest" -Force
           $json.devDependencies | Add-Member -MemberType NoteProperty -Name "electron-builder" -Value "latest" -Force
           
@@ -43,7 +46,6 @@ jobs:
         run: npm install --force
 
       - name: Force Fix Expo Dependencies
-        # We run this twice: once to sync and once to ensure all peer deps are satisfied
         run: |
           npx expo install --fix
           npx expo install expo-font @expo/vector-icons
@@ -52,7 +54,8 @@ jobs:
         run: npx expo export --platform web
 
       - name: Build Windows EXE
-        run: npx electron-builder build --windows --publish never -c.nodeGypRebuild=false
+        # We removed the problematic flag and moved config into the package.json repair step
+        run: npx electron-builder build --windows --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -60,4 +63,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: IronWrench-Windows-App
-          path: dist/*.exe
+          path: dist-exe/*.exe
